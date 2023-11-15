@@ -8,9 +8,9 @@ class DBSettings(BaseSettings):
     )
     HOST: str = "localhost"
     PORT: str = "5432"
-    NAME: str = "smileai"
-    USER: str = "postres"
-    PASSWORD: str = "postres"
+    NAME: str = "bot_db"
+    USER: str = "postgres"
+    PASSWORD: str = "postgres"
     POOL_SIZE: int = 5
     MAX_OWERFLOW: int = 10
 
