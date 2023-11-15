@@ -1,3 +1,3 @@
-from models.client import Client
+from src.database.models.client import Client
 
 __all__ = ["Client"]
