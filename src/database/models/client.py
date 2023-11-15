@@ -25,5 +25,3 @@ class Client(Base):
     def __str__(self):
         return f" Клиент: {self.login}"
 
-    def error_message(self):
-        return f" Client: {self.login}   id: {self.id}"
