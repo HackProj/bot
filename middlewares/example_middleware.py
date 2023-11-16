@@ -1,7 +1,7 @@
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery, TelegramObject
 from typing import Dict, Awaitable, Callable, Any
-from src.bot.bot_instance import dp
+from config import dp
 
 
 class Middleware(BaseMiddleware):
@@ -14,6 +14,6 @@ class Middleware(BaseMiddleware):
         return await handler(event, data)
 
 
-# dp.update.middleware.register(Middleware())
+dp.update.middleware.register(Middleware())
 # or
 # dp.message.middleware.register(Middleware)
