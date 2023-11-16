@@ -1,3 +1,5 @@
+import json
+
 import requests
 from aiogram import types, Router, Bot
 from aiogram.filters import CommandStart, StateFilter
@@ -17,6 +19,11 @@ from steam.steamid import SteamID
 router = Router()
 dp.include_router(router)
 API_PATH = "http://localhost:6001/api/"
+headers = {
+    'Content-type': 'application/json',
+    'Accept': 'application/json'
+}
+
 
 @router.message(CommandStart())
 async def start(message: types.Message, bot: Bot):
@@ -43,21 +50,15 @@ class SendRegistr(StatesGroup):
 @router.message(StateFilter(None), Command("add_friend"))
 async def send_url(message: types.Message, state: FSMContext):
     await message.answer(
-        text="Отправьте ссылку на профиль потенциальной крысы: https://steamcommunity.com/id/<friend_name>",
+        text="Отправьте ссылку на профиль потенциальной крысы",
     )
     await state.set_state(SendRegistr.SendUrl)
 
 
 @router.message(SendRegistr.SendUrl)
 async def get_friend_url(message: types.Message, state: FSMContext):
-    print(message.text.lower())
-    print(SteamID.from_url(message.text.lower()))
-
     await state.update_data(FriendUrl=message.text.lower())
     await state.update_data(TelegramId=message.from_user.id)
-    print("*"*100)
-    print(message.from_user.id)
-    print("*"*100)
     print(await state.get_data())
     print(state.storage)
     await message.answer(
@@ -69,15 +70,28 @@ async def get_friend_url(message: types.Message, state: FSMContext):
 
 @router.message(SendRegistr.SendGameUrl)
 async def get_game_url(message: types.Message, state: FSMContext):
-    print(message.text.lower())
-    print(SteamID.from_url(message.text.lower()))
-
-    await state.update_data(AppUrl=message.text.lower())
-
-    await message.answer(
-        text="Круто, мы теперь будем следить за ним. Если эта крыса зайдет в игру, мы тебе напишем",
-    )
-    temp = requests.post(f"{API_PATH}/")
+    await state.update_data(AppUrl=message.text)
+    print(message.from_user.id)
+    print(json.dumps(await state.get_data()))
+    print(type(json.dumps(await state.get_data())))
+    requests_data = requests.post(f"{API_PATH}Users/subscribe", data=json.dumps(await state.get_data()),
+                                  headers=headers)
+    print(requests_data.url)
+    print(requests_data.status_code)
+    print(requests_data.text)
+    print(requests_data.content)
+    if requests_data.status_code == 415:
+        await message.answer(
+            text="Проблема, либо у крысы нет этой игры или закрытый профиль 🐀",
+        )
+    elif requests_data.status_code >= 400:
+        await message.answer(
+            text=f"Проблема, {requests_data.text}",
+        )
+    else:
+        await message.answer(
+            text="Круто, мы теперь будем следить за ним. Если эта крыса зайдет в игру, мы тебе напишем",
+        )
     await state.clear()
 
 
@@ -91,12 +105,17 @@ class UpdateStatus(StatesGroup):
 
 @router.message(StateFilter(None), Command("update"))
 async def select_friends(message: types.Message, state: FSMContext):
-    # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    my_friends = ["Gonarch", "CRYPTOINVESTER VICTOROVICH"]
+    print(message.from_user.id)
+    friends_names = requests.get(f"{API_PATH}Users/subscriptions?userId={message.from_user.id}")
 
+    friend_dict = {}
+    for elem in friends_names.json():
+        friend_dict[elem["friendName"]] = elem["profileUrl"]
+
+    await state.update_data(FriendsDict=friend_dict)
     await message.answer(
         text="Выбери крысу.",
-        reply_markup=make_row_keyboard(my_friends)
+        reply_markup=make_row_keyboard(friend_dict.keys())
 
     )
     await state.set_state(UpdateStatus.SendStatus)
@@ -107,15 +126,11 @@ listen = ["Да следим крысой", "Не, я ему доверяю кр
 
 @router.message(UpdateStatus.SendStatus)
 async def get_friends_url(message: types.Message, state: FSMContext):
-    print(message.text)
-    # print(SteamID.from_url(message.text.lower()))
+    friends_dict = (await state.get_data()).get("FriendsDict", None)
 
     await state.update_data(TelegramId=message.from_user.id)
-    await state.update_data(FriendUrl=message.text)
+    await state.update_data(FriendUrl=friends_dict.get(message.text))
 
-    print(message.text)
-    print(await state.get_data())
-    print(state.storage)
     await message.answer(
         text="Следим ?",
         reply_markup=make_row_keyboard(listen)
@@ -129,10 +144,9 @@ async def finish_state(message: types.Message, state: FSMContext):
     # print(SteamID.from_url(message.text.lower()))
 
     await state.update_data(IsEnabled=message.text == listen[0])
+    data = requests.put(f"{API_PATH}", data=json.dumps(await state.get_data()), headers=headers)
 
-    print(message.text)
-    print(await state.get_data())
-    print(state.storage)
+    print(json.dumps(await state.get_data()))
     await message.answer(
         text="Договорились",
         reply_markup=ReplyKeyboardRemove()
@@ -150,11 +164,17 @@ class RemoveFriend(StatesGroup):
 @router.message(StateFilter(None), Command("remove_fined"))
 async def select_friends(message: types.Message, state: FSMContext):
     # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    my_friends = ["name1", "name2"]
+    friend_dict = dict()
+    friends_names = requests.get(f"{API_PATH}Users/subscriptions?userId={message.from_user.id}")
+
+    for elem in friends_names.json():
+        friend_dict[elem["friendName"]] = elem["profileUrl"]
+
+    await state.update_data(FriendsDict=friend_dict)
 
     await message.answer(
         text="Выбери кого выписать из крыс.",
-        reply_markup=make_row_keyboard(my_friends)
+        reply_markup=make_row_keyboard(friend_dict.keys())
 
     )
     await state.set_state(RemoveFriend.SendFriendUrl)
@@ -166,13 +186,11 @@ confirmation = ("Да", "Нет")
 @router.message(RemoveFriend.SendFriendUrl)
 async def work_with_friend_url(message: types.Message, state: FSMContext):
     print(message.text)
+    friends_dict = (await state.get_data()).get("FriendsDict", None)
 
     await state.update_data(TelegramId=message.from_user.id)
-    await state.update_data(FriendUrl=message.text)
+    await state.update_data(FriendUrl=friends_dict[message.text])
 
-    print(message.text)
-    print(await state.get_data())
-    print(state.storage)
     await message.answer(
         text=f"Уверен, что хочешь удалить {message.text}",
         reply_markup=make_row_keyboard(confirmation)
@@ -182,14 +200,19 @@ async def work_with_friend_url(message: types.Message, state: FSMContext):
 
 @router.message(RemoveFriend.Finish)
 async def work_with_friend_url(message: types.Message, state: FSMContext):
-    print(message.text)
-
     if message.text == confirmation[0]:
-        #     todo request delete
-        await message.answer(
-            text=f"Удалили крысу",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        data = requests.delete(f"{API_PATH}Users/subscription/friend", data=json.dumps(await state.get_data()),
+                               headers=headers)
+        if data.status_code < 299:
+            await message.answer(
+                text=f"Удалили крысу",
+                reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            await message.answer(
+                text=f"Какие-то проблемы {data.status_code}   {data.content}",
+                reply_markup=ReplyKeyboardRemove()
+            )
     else:
         await message.answer(
             text=f"Окей, тогда оставляем",
@@ -202,11 +225,11 @@ async def work_with_friend_url(message: types.Message, state: FSMContext):
 @router.message(StateFilter(None), Command("friends"))
 async def select_friends(message: types.Message, state: FSMContext):
     # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    my_friends = ["name1", "name2"]
+    friends_names = requests.get(f"{API_PATH}Users/subscriptions?userId={message.from_user.id}")
+    friends_names = [elem["friendName"] for elem in friends_names.json()]
 
     await message.answer(
-        text=", ".join(my_friends),
-        reply_markup=make_row_keyboard(my_friends)
+        text=", ".join(friends_names),
 
     )
 
@@ -219,13 +242,17 @@ class GetFriendsGames(StatesGroup):
 
 @router.message(StateFilter(None), Command("friend_games"))
 async def select_friends(message: types.Message, state: FSMContext):
-    # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    my_friends = ["name1", "name2"]
-    a = f'Выбери друга {", ".join(my_friends)}'
-    await message.answer(
+    friend_dict = dict()
+    friends_names = requests.get(f"{API_PATH}Users/subscriptions?userId={message.from_user.id}")
 
-        text=f'Выбери друга ',
-        reply_markup=make_row_keyboard(my_friends)
+    for elem in friends_names.json():
+        friend_dict[elem["friendName"]] = elem["profileUrl"]
+
+    await state.update_data(FriendsDict=friend_dict)
+
+    await message.answer(
+        text=f'Выбери друга',
+        reply_markup=make_row_keyboard(friend_dict.keys())
     )
 
     await state.set_state(GetFriendsGames.SendFriendUrl)
@@ -233,7 +260,7 @@ async def select_friends(message: types.Message, state: FSMContext):
 
 @router.message(GetFriendsGames.SendFriendUrl)
 async def return_games(message: types.Message, state: FSMContext):
-    #     todo request
+    #     todo request мотя сделай, я ебал передавать блядские юрлы в юрлы
     games = ["CS2", "Dota2", "PUBG"]
 
     await message.answer(
@@ -244,17 +271,10 @@ async def return_games(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-
-
 # Get hints
 @router.message(StateFilter(None), Command("hints"))
-async def select_friends(message: types.Message, state: FSMContext):
-    # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    data = requests.get(url="http://127.0.0.1:8080/hint" ).json().get("message")
-    print(data)
-
+async def get_hints(message: types.Message):
+    data = requests.get(url="http://127.0.0.1:8080/hint").json().get("message")
     await message.answer(
         text=data,
     )
-
-
