@@ -1,15 +1,13 @@
-from aiogram import types, Router, Bot
-from aiogram.filters import CommandStart, StateFilter
+from aiogram import Bot, F, Router, types
+from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-
-from messages import START
-from config import dp
-from aiogram import types, F, Router
-from aiogram.filters import Command
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.markdown import hcode
-from handlers.commands import commands
 from steam.steamid import SteamID
+
+from config import dp
+from handlers.commands import commands
+from messages import START
 
 router = Router()
 dp.include_router(router)
@@ -21,16 +19,19 @@ async def start(message: types.Message, bot: Bot):
 
     await message.answer(text=text)
 
+
 @router.message(Command("help"))
-async def help(message: types.Message , bot: Bot):
+async def help(message: types.Message, bot: Bot):
     answer = ["Доступные команды: "]
     for command, description in commands:
         answer.append(hcode(f"/{command}") + f" — {description}")
 
     await message.answer("\n".join(answer))
 
+
 class SendLogin(StatesGroup):
     SendUrl = State()
+
 
 @router.message(StateFilter(None), Command("add_friend"))
 async def send_url(message: types.Message, state: FSMContext):
@@ -38,7 +39,6 @@ async def send_url(message: types.Message, state: FSMContext):
         text="Отправьте ссылку на профиль стим друга: https://steamcommunity.com/id/<friend_name>",
     )
     await state.set_state(SendLogin.SendUrl)
-
 
 
 @router.message(SendLogin.SendUrl)
@@ -55,14 +55,12 @@ async def get_url(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-
 # https://store.steampowered.com/app/962130
-
-
 
 
 class SendGame(StatesGroup):
     SendGameUrl = State()
+
 
 @router.message(StateFilter(None), Command("add_game"))
 async def send_game_url(message: types.Message, state: FSMContext):
@@ -70,7 +68,6 @@ async def send_game_url(message: types.Message, state: FSMContext):
         text="Отправьте ссылку на игру в таком виде: `https://store.steampowered.com/app/730`",
     )
     await state.set_state(SendGame.SendGameUrl)
-
 
 
 @router.message(SendGame.SendGameUrl)
