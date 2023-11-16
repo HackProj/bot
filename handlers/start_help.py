@@ -16,7 +16,7 @@ from steam.steamid import SteamID
 
 router = Router()
 dp.include_router(router)
-
+API_PATH = "http://localhost:6001/api/"
 
 @router.message(CommandStart())
 async def start(message: types.Message, bot: Bot):
@@ -55,6 +55,9 @@ async def get_friend_url(message: types.Message, state: FSMContext):
 
     await state.update_data(FriendUrl=message.text.lower())
     await state.update_data(TelegramId=message.from_user.id)
+    print("*"*100)
+    print(message.from_user.id)
+    print("*"*100)
     print(await state.get_data())
     print(state.storage)
     await message.answer(
@@ -74,7 +77,7 @@ async def get_game_url(message: types.Message, state: FSMContext):
     await message.answer(
         text="Круто, мы теперь будем следить за ним. Если эта крыса зайдет в игру, мы тебе напишем",
     )
-    # request.post
+    temp = requests.post(f"{API_PATH}/")
     await state.clear()
 
 
@@ -89,7 +92,7 @@ class UpdateStatus(StatesGroup):
 @router.message(StateFilter(None), Command("update"))
 async def select_friends(message: types.Message, state: FSMContext):
     # friends = requests.get(f"" , data={"userId":message.from_user.id})
-    my_friends = ["name1", "name2"]
+    my_friends = ["Gonarch", "CRYPTOINVESTER VICTOROVICH"]
 
     await message.answer(
         text="Выбери крысу.",
@@ -239,3 +242,19 @@ async def return_games(message: types.Message, state: FSMContext):
     )
 
     await state.clear()
+
+
+
+
+# Get hints
+@router.message(StateFilter(None), Command("hints"))
+async def select_friends(message: types.Message, state: FSMContext):
+    # friends = requests.get(f"" , data={"userId":message.from_user.id})
+    data = requests.get(url="http://127.0.0.1:8080/hint" ).json().get("message")
+    print(data)
+
+    await message.answer(
+        text=data,
+    )
+
+
