@@ -3,6 +3,7 @@ from typing import Union
 from aiogram.filters import BaseFilter
 from aiogram.types import Message
 
+
 class BaseFilter(BaseFilter):
     def __init__(self):
         pass

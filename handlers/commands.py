@@ -1,6 +1,6 @@
 from aiogram import types
 
-commands = (
+commands:tuple[tuple[str, str], ...] = (
     ("start", "Запуск бота."),
     ("add_friend", "Добавить крысу."),
     ("remove_fined", "Удалить крысу."),
