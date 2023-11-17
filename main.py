@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
-from handlers.commands import set_commands
-
 from aiogram import Bot
+
+from handlers.commands import set_commands
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -16,9 +16,9 @@ async def on_startup(bot: Bot):
 
 
 async def main():
-    from config import bot, dp
-    import middlewares
     import handlers
+    from config import bot, dp
+
     await set_commands(bot)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)
